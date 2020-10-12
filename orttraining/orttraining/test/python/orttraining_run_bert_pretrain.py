@@ -510,7 +510,7 @@ def generate_tensorboard_logdir(root_dir):
 
 class ORTBertPretrainTest(unittest.TestCase):
     def setUp(self):
-        self.output_dir = '/bert_data/hf_data/test_out/bert_pretrain_results'
+        self.output_dir = './'
         self.bert_model = 'bert-base-uncased'
         self.local_rank = -1
         self.world_rank = -1
@@ -547,7 +547,7 @@ class ORTBertPretrainTest(unittest.TestCase):
         logger.info("self.gradient_accumulation_steps = %d", self.gradient_accumulation_steps)
 
         # only to run on  optimization step because we only want to make sure there is no throughput regression
-        self.max_steps = 5
+        self.max_steps = 50
         args = PretrainArguments(
             output_dir=self.output_dir,
             bert_model=self.bert_model,
