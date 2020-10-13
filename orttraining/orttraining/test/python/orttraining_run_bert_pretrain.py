@@ -288,7 +288,7 @@ class PretrainArguments:
     # this argument is test specific. to run a full bert model will take too long to run. instead, we reduce
     # number of hidden layers so that it can show convergence to an extend to help detect any regression.
     force_num_hidden_layers: Optional[int] = field(
-        default=2,
+        default=None,
         metadata={"help": "Whether to use fp16 gradient accumulators."}
     )
 
@@ -351,8 +351,6 @@ def prepare_model(args, device):
     if args.force_num_hidden_layers:
         logger.info("Modifying model config with num_hidden_layers to %d", args.force_num_hidden_layers)
         config.num_hidden_layers = args.force_num_hidden_layers
-        config.hidden_size = 256
-        config.num_attention_heads = 4
 
     model = BertForPreTraining(config)
     if args.init_state_dict is not None:
@@ -510,12 +508,12 @@ def generate_tensorboard_logdir(root_dir):
 
 class ORTBertPretrainTest(unittest.TestCase):
     def setUp(self):
-        self.output_dir = './'
+        self.output_dir = '/bert_data/hf_data/test_out/bert_pretrain_results'
         self.bert_model = 'bert-base-uncased'
         self.local_rank = -1
         self.world_rank = -1
         self.world_size = 1
-        self.max_steps = 10
+        self.max_steps = 300000
         self.learning_rate = 5e-4
         self.max_seq_length = 512
         self.max_predictions_per_seq = 20
@@ -536,10 +534,8 @@ class ORTBertPretrainTest(unittest.TestCase):
         # args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps // args.world_size
 
         # the LAMB batch size of 64k
-        # optimization_batch_size = 64 * 1024
+        optimization_batch_size = 64 * 1024
         per_gpu_batch_size = 32
-        optimization_batch_size = per_gpu_batch_size*self.world_size # set to disable grad accumulation
-        
 
         self.train_batch_size = optimization_batch_size
         self.gradient_accumulation_steps = optimization_batch_size // per_gpu_batch_size // self.world_size
@@ -547,7 +543,7 @@ class ORTBertPretrainTest(unittest.TestCase):
         logger.info("self.gradient_accumulation_steps = %d", self.gradient_accumulation_steps)
 
         # only to run on  optimization step because we only want to make sure there is no throughput regression
-        self.max_steps = 50
+        self.max_steps = 1
         args = PretrainArguments(
             output_dir=self.output_dir,
             bert_model=self.bert_model,
@@ -687,7 +683,7 @@ if __name__ == "__main__":
             test.force_num_hidden_layers = 8
             final_loss = test.test_pretrain_convergence()
             logger.info("ORTBertPretrainTest.test_pretrain_convergence() final loss = %f", final_loss)
-            # test.assertLess(final_loss, 8.5)
+            test.assertLess(final_loss, 8.5)
             logger.info("ORTBertPretrainTest.test_pretrain_convergence() passed")
         elif len(sys.argv) >= 2 and sys.argv[1] == 'ORTBertPretrainTest.test_pretrain_zero':
             logger.info("running ORTBertPretrainTest.test_pretrain_zero()...")
